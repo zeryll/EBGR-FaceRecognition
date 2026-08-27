@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-BGR — Monitoring Tamu</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</head>
+<body>
+<div class="app-container">
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="logo-icon">⚡</div>
+            <div class="brand-text">
+                <h2>E-BGR</h2>
+                <span>PLN UPDL BOGOR</span>
+            </div>
+        </div>
+
+        <!-- Nav Admin -->
+        <nav class="nav-menu">
+            <a href="#" class="nav-item active" id="nav-dashboard"
+               data-role="admin" onclick="showPage('dashboard'); return false;">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">Dashboard Utama</span>
+            </a>
+            <a href="#" class="nav-item" id="nav-logs"
+               data-role="admin" onclick="showPage('logs'); return false;">
+                <span class="nav-icon">📋</span>
+                <span class="nav-label">Log Kehadiran</span>
+            </a>
+            <a href="#" class="nav-item" id="nav-status"
+               data-role="admin" onclick="showPage('status'); return false;">
+                <span class="nav-icon">🛡️</span>
+                <span class="nav-label">Status IoT Node</span>
+            </a>
+        </nav>
+
+        <!-- MQTT Status -->
+        <div class="mqtt-status-card">
+            <div class="status-indicator" id="mqtt-status-light"></div>
+            <div class="status-info">
+                <span class="status-title" id="mqtt-status-text">Menghubungkan MQTT...</span>
+                <span class="status-sub">broker.emqx.io</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="main-content">
+
+        <!-- Header (shared) -->
+        <header class="top-header">
+            <div class="header-title">
+                <h1 id="page-title">Monitoring Kehadiran Tamu</h1>
+                <p>Sistem Pengenalan Wajah E-BGR · PLN UPDL Bogor</p>
+            </div>
+            <div class="header-actions">
+                <!-- Simulasi hanya untuk admin -->
+                <button class="btn btn-demo" id="btn-simulasi" data-role="admin">✨ Simulasi Signal</button>
+                <div class="live-clock">00:00:00 WIB</div>
+
+                <!-- User info + logout -->
+                <div class="user-info">
+                    <div class="user-avatar" id="user-avatar">A</div>
+                    <span id="user-name">Admin</span>
+                    <span id="user-badge" class="role-badge badge-admin">Admin</span>
+                    <button class="btn-logout" onclick="doLogout()">⎋ Keluar</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- ============================
+             PAGE: DASHBOARD (Admin)
+             ============================ -->
+        <div id="page-dashboard" class="page active" data-role="admin">
+
+            <section class="stats-grid">
+                <div class="stat-card glass glow-blue">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-data">
+                        <span class="stat-label">Tamu Di Dalam</span>
+                        <h3 class="stat-value" id="count-checkedin">0</h3>
+                        <span class="stat-trend trend-up">Aktif saat ini</span>
+                    </div>
+                </div>
+                <div class="stat-card glass glow-green">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-data">
+                        <span class="stat-label">Total Check-In Hari Ini</span>
+                        <h3 class="stat-value" id="count-total-in">0</h3>
+                        <span class="stat-trend">Terverifikasi Biometrik</span>
+                    </div>
+                </div>
+                <div class="stat-card glass glow-purple">
+                    <div class="stat-icon">🚪</div>
+                    <div class="stat-data">
+                        <span class="stat-label">Total Check-Out Hari Ini</span>
+                        <h3 class="stat-value" id="count-total-out">0</h3>
+                        <span class="stat-trend">Selesai Kunjungan</span>
+                    </div>
+                </div>
+                <div class="stat-card glass glow-cyan">
+                    <div class="stat-icon">⚡</div>
+                    <div class="stat-data">
+                        <span class="stat-label">Kecepatan Respon IoT</span>
+                        <h3 class="stat-value">&lt; 1 Detik</h3>
+                        <span class="stat-trend trend-fast">MQTT Async Stream</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Kontrol Kamera (Admin) -->
+            <section class="control-panel glass">
+                <div class="control-header">
+                    <h2>📷 Kontrol Kamera &amp; Node Face Recognition</h2>
+                    <span class="control-sub">Jalankan program kamera langsung dari Dashboard</span>
+                </div>
+                <div class="control-buttons">
+                    <button class="btn-control btn-checkin-start"
+                            onclick="callApi('/api/start-checkin', this)">
+                        <span class="btn-control-icon">📸</span>
+                        <div class="btn-control-text">
+                            <strong>Mulai Pendaftaran (Check-In)</strong>
+                            <span>Buka kamera &amp; daftarkan wajah tamu baru</span>
+                        </div>
+                    </button>
+                    <button class="btn-control btn-checkout-start"
+                            onclick="callApi('/api/start-checkout', this)">
+                        <span class="btn-control-icon">🔍</span>
+                        <div class="btn-control-text">
+                            <strong>Mulai Verifikasi / Check-Out</strong>
+                            <span>Buka kamera &amp; verifikasi identitas tamu</span>
+                        </div>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Live Feed -->
+            <section class="dashboard-body-single">
+                <div class="section-card glass live-feed-container">
+                    <div class="card-header">
+                        <h2>🔴 Live Notification Feed (MQTT Stream)</h2>
+                        <span class="pulse-badge">LIVE STREAM</span>
+                    </div>
+                    <div class="feed-list" id="feed-list">
+                        <div class="empty-feed" id="empty-feed-msg">
+                            <span>📡 Menunggu sinyal dari Raspberry Pi...</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ============================
+             PAGE: LOG KEHADIRAN (Admin)
+             ============================ -->
+        <div id="page-logs" class="page hidden" data-role="admin">
+            <header class="top-header" style="margin-bottom:0">
+                <div class="header-title" style="display:none"></div>
+                <div class="header-actions">
+                    <button class="btn btn-demo" onclick="fetchDatabaseLogs()">🔄 Refresh</button>
+                </div>
+            </header>
+
+            <section class="stats-grid">
+                <div class="stat-card glass glow-green">
+                    <div class="stat-icon">📥</div>
+                    <div class="stat-data">
+                        <span class="stat-label">Total Check-In</span>
+                        <h3 class="stat-value" id="log-count-in">0</h3>
+                    </div>
+                </div>
+                <div class="stat-card glass glow-purple">
+                    <div class="stat-icon">📤</div>
+                    <div class="stat-data">
+                        <span class="stat-label">Total Check-Out</span>
+                        <h3 class="stat-value" id="log-count-out">0</h3>
+                    </div>
+                </div>
+                <div class="stat-card glass glow-blue">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-data">
+                        <span class="stat-label">Total Semua Log</span>
+                        <h3 class="stat-value" id="log-count-total">0</h3>
+                    </div>
+                </div>
+            </section>
+
+            <section class="section-card glass">
+                <div class="card-header">
+                    <h2>📋 Rekapitulasi Lengkap Log Kehadiran</h2>
+                    <div class="search-box">
+                        <input type="text" id="input-search" placeholder="Cari nama / ID tamu...">
+                    </div>
+                </div>
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>No.</th><th>ID Tamu</th><th>Nama</th><th>Event</th>
+                                <th>Waktu</th><th>Metode</th><th>Status</th><th>Preview Wajah</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- ============================
+             PAGE: STATUS IOT (Admin)
+             ============================ -->
+        <div id="page-status" class="page hidden" data-role="admin">
+            <section class="section-card glass" style="padding:60px;text-align:center">
+                <div style="font-size:64px;margin-bottom:20px">🛡️</div>
+                <h2 style="margin-bottom:12px">Status Koneksi IoT Node</h2>
+                <p style="color:var(--text-muted)">Monitoring status Raspberry Pi via MQTT real-time.</p>
+                <div class="glass" style="padding:20px;border-radius:12px;max-width:400px;margin:24px auto 0">
+                    <div style="display:flex;align-items:center;gap:14px">
+                        <div class="status-indicator" id="iot-status-light"></div>
+                        <div>
+                            <div style="font-weight:600;font-size:14px">Menunggu sinyal dari Node...</div>
+                            <div style="font-size:12px;color:var(--text-dim)">Topik: ebgr/node/heartbeat</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- ============================
+             PAGE: CHECK-IN USER (Non-Admin)
+             ============================ -->
+        <div id="page-checkin-user" class="page hidden">
+            <section class="user-checkin-panel glass">
+                <div style="text-align:center;margin-bottom:32px">
+                    <div style="font-size:64px;margin-bottom:16px">📸</div>
+                    <h2 style="font-size:22px;font-weight:700;margin-bottom:8px">Mulai Pendaftaran Tamu</h2>
+                    <p style="color:var(--text-muted);font-size:14px">
+                        Klik tombol di bawah untuk membuka kamera dan mendaftarkan wajah tamu baru ke sistem E-BGR.
+                    </p>
+                </div>
+                <button class="btn-control btn-checkin-start" style="max-width:400px;margin:0 auto"
+                        onclick="callApi('/api/start-checkin', this)">
+                    <span class="btn-control-icon">📸</span>
+                    <div class="btn-control-text">
+                        <strong>Buka Kamera Check-In</strong>
+                        <span>Daftarkan wajah tamu baru via Webcam</span>
+                    </div>
+                </button>
+                <div style="margin-top:24px;text-align:center">
+                    <div class="live-clock" style="display:inline-block;font-size:14px;color:var(--text-muted)">
+                        00:00:00 WIB
+                    </div>
+                </div>
+            </section>
+        </div>
+
+    </main>
+</div>
+
+<!-- Toast -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Face Preview Modal -->
+<div class="modal-overlay hidden" id="face-modal">
+    <div class="modal-card glass">
+        <div class="modal-header">
+            <h2 id="modal-title">👤 Preview Wajah</h2>
+            <button class="btn-close-modal" onclick="closeModal()">✕</button>
+        </div>
+        <div id="modal-body">
+            <div class="modal-loading">⏳ Memuat foto...</div>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

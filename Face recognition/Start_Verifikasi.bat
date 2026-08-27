@@ -1,0 +1,6 @@
+@echo off
+echo Mengaktifkan Virtual Environment...
+call venv\Scripts\activate.bat
+echo Memulai Aplikasi Verifikasi Keluar (Check-Out)...
+python FaceRecognition_EBGR\app_checkout.py
+pause

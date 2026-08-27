@@ -1,0 +1,30 @@
+# Virtual Environments (Sangat penting di-ignore karena venv Windows tidak kompatibel dengan Linux)
+venv/
+env/
+ENV/
+.venv/
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Database lokal & media jika tidak ingin di-push (opsional)
+# data/local_ebgr.db
+# data/tamu/
+
+# IDE & Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Zip / temporary backup
+*.zip
+*.tar.gz
+*.log
+
+# OS generated files
+Thumbs.db
+.DS_Store

@@ -1,0 +1,3 @@
+@echo off
+echo Membuka E-BGR Web Monitoring Dashboard...
+start "" "..\Web_Dashboard_EBGR\index.html"
